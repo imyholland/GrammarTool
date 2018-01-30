@@ -1,16 +1,6 @@
 package MEGrammarTool;
-import MEGrammarTool.*;
-import java.io.*;
-import java.awt.*;
-import java.awt.event.*;
-import javax.swing.*;
-import javax.swing.SwingUtilities;
-import javax.swing.filechooser.*;
-import java.util.regex.*;
-import com.infomata.data.*;
-import cern.colt.list.*;
-import cern.colt.matrix.*;
-import pal.math.*;
+
+import cern.colt.matrix.DoubleMatrix2D;
 
 //remember you still need to seed the damn thing
 
@@ -20,6 +10,6 @@ public class OTData
 	String[] candidateNames;
 	String inputForm;
 	double[] frequencies;
-	
+
 	OTData(){}
 }

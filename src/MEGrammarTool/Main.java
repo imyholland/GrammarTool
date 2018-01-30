@@ -1,17 +1,23 @@
 package MEGrammarTool;
-import MEGrammarTool.*;
-import java.io.*;
-import java.awt.*;
-import java.awt.event.*;
+
+import MEGrammarTool.fileparsing.DataFile;
+import MEGrammarTool.fileparsing.DataRow;
+import MEGrammarTool.fileparsing.TabFormat;
+import cern.colt.list.ObjectArrayList;
+import cern.colt.matrix.DoubleFactory2D;
+import cern.colt.matrix.DoubleMatrix1D;
+import cern.colt.matrix.DoubleMatrix2D;
+import pal.math.ConjugateGradientSearch;
+import pal.math.MinimiserMonitor;
+
 import javax.swing.*;
-import javax.swing.SwingUtilities;
-import javax.swing.filechooser.*;
-import java.util.regex.*;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
 import java.util.HashMap;
-import com.infomata.data.*;
-import cern.colt.list.*;
-import cern.colt.matrix.*;
-import pal.math.*;
 import java.util.Vector;
 
 
@@ -19,7 +25,7 @@ import java.util.Vector;
 public class Main extends JPanel implements ActionListener
 {
     JButton tableauxSelector, constraintSelector, targetSelector, runButton;
-    JLabel tableauxSourceName, constraintSourceName, targetName, statusReport; 
+    JLabel tableauxSourceName, constraintSourceName, targetName, statusReport;
     File targetFile;
     JFileChooser fcIn, fcOut;
 	public HashMap<String,Feature> featureNameMap;
@@ -32,7 +38,7 @@ public class Main extends JPanel implements ActionListener
 
     public Main(Container thepane)
     {
-		
+
         thepane.setLayout(new GridBagLayout());
         fcIn = new JFileChooser();
         fcOut = new JFileChooser();
@@ -48,7 +54,7 @@ public class Main extends JPanel implements ActionListener
 		runButton = new JButton("Learn and Report");
 		runButton.addActionListener(this);
 		statusReport = new JLabel("[news will appear here]");
-		
+
 		thepane.add(tableauxSelector,
 			new GridBagConstraints( 1, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHEAST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  28 ), 0, 0 ));
 		thepane.add(new JLabel("Tableaux From:"),
@@ -141,7 +147,7 @@ public class Main extends JPanel implements ActionListener
             if (returnVal == JFileChooser.APPROVE_OPTION)
 			{
 				File file = fcOut.getSelectedFile();
-				targetName.setText(file.getName());             
+				targetName.setText(file.getName());
 				targetFile = file;
 				statusReport.setText("output file set to " + file.getName());
             }
@@ -166,11 +172,11 @@ public class Main extends JPanel implements ActionListener
 					textout = new PrintStream(fo);
 					readytogo = true;
 				}catch(Exception exc){badNews("run aborted: file access error."); runokay = false; statusReport.setText("run aborted: file access error");}
-		
+
 				if(readytogo)
 				{
 					CRF.printMe(textout);
-				
+
 					try{
 						if(featureSpecs != null)
 						{
@@ -194,19 +200,19 @@ public class Main extends JPanel implements ActionListener
 							textout.println();
 						}
 					}catch(Exception exc){badNews("failure incorporating information from constraint file."); runokay = false; statusReport.setText("error incorporating constraint information");}
-				
+
 					try{
 						optimize(textout);
 						printPredictedProbabilities(textout);
 					}catch(Exception exc){badNews("failure during main learning and output segment."); runokay = false; statusReport.setText("error encountered in learning or output.");}
 				}
-	
+
 
 				if(fo != null) try{
 					textout.close();
 					fo.close();
 				}catch(Exception exc){badNews("issues closing output file."); runokay = false; statusReport.setText("error closing output file.");}
-				
+
 				if(runokay) statusReport.setText("learning results written successfully.");
 			}
 		}
@@ -219,9 +225,9 @@ public class Main extends JPanel implements ActionListener
      */
     private static void createAndShowGUI() {
         //Create and set up the window.
-		
+
 		JFrame frame = new JFrame("MaxEnt Grammar Tool");
-		
+
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		//Add content to the window.
         frame.add(new Main(frame.getContentPane()));
@@ -243,7 +249,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 		for(int i = 0; i < cands_j.length; i++)
 		{
 			outputTarget.println(((OTData) CRF.mydata.get(j)).inputForm +
-								"\t" + cands_j[i] + 
+								"\t" + cands_j[i] +
 								"\t" + ((OTData) CRF.mydata.get(j)).frequencies[i] +
 								"\t" + outputProbs_j.get(i));
 		}
@@ -275,7 +281,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 			outputTarget.println();
 		}
 	}
-	
+
 }*/
 
 
@@ -294,9 +300,9 @@ private void optimize(PrintStream outputTarget)
 	outputTarget.println();
 	outputTarget.println("|weights| after optimization:");
 	for(int k = 0; k < CRF.features.length; k++)
-	{ outputTarget.println(CRF.features[k].name 
-		+ " (mu=" + CRF.features[k].MU 
-		+ ", sigma^2=" + REG.sigma2(CRF.features[k]) 
+	{ outputTarget.println(CRF.features[k].name
+		+ " (mu=" + CRF.features[k].MU
+		+ ", sigma^2=" + REG.sigma2(CRF.features[k])
 		+ ")\t" + Math.abs(CRF.lambda[k])); }
 }
 
@@ -389,7 +395,7 @@ private static void readTableaux(File f, ProvisionalCRF CRF, HashMap<String,Feat
 		tableaux.add(freshdata);
 	}
 
-	
+
 	CRF.setMyData(tableaux);
 	CRF.features = featureArray;
 	CRF.lambda = new double[featureArray.length];
