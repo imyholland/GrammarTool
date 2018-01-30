@@ -324,7 +324,7 @@ private static void readFeatureSpecs(File f, Vector<Feature> fs) throws Exceptio
 		fs.add(freshfeature);
 		filerow = read.next();
 		i = i+1;
-		if(i == 4) filerow = null;
+		//if(i == 4) filerow = null;
 	}
 	read.close();
 }
