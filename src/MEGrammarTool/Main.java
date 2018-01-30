@@ -102,6 +102,7 @@ public class Main extends JPanel implements ActionListener
 					statusReport.setText("successfully opened " + file.getName());
 				}catch(Exception exc)
 				{
+					exc.printStackTrace();
 					System.out.print("unable to read tableaux from " + file.getName() + "\n");
 					tableauxSourceName.setText("[none]");
 					trainingData = null;
@@ -128,6 +129,7 @@ public class Main extends JPanel implements ActionListener
 					statusReport.setText("successfully opened " + file.getName());
 				}catch(Exception exc)
 				{
+					exc.printStackTrace();
 					System.out.print("unable to read constraint data from " + file.getName() + "\n");
 					System.out.println(exc);
 					constraintSourceName.setText("[Default Values]");

@@ -132,8 +132,14 @@ public double getLowerBound(int arg)
 public double getUpperBound(int arg)
 { return 0.0; }
 
+	@Override
+	public OrthogonalHints getOrthogonalHints() {
+		System.out.println("this is not implemented, returning null!");
+		return null;
+	}
 
-/**
+
+	/**
  *  Compute the negative log conditional likelihood 
  *  (i.e., neg log pseudo-likelihood) with regularizer.
  *  @param weights vector of feature weights

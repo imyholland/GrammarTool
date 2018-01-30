@@ -24,6 +24,8 @@ public class DataFile {
 
 	public DataRow next() throws IOException {
 		String nextLine = bufferedReader.readLine();
+		if (nextLine == null)
+			return null;
 		return new DataRow(nextLine, format);
 	}
 
