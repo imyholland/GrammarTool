@@ -18,10 +18,8 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Vector;
 
 
 public class Main extends JPanel implements ActionListener
@@ -318,6 +316,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 {
 	ObjectArrayList outputProbs = CRF.outputProbabilities(CRF.lambda);
 	outputTarget.println("Input:\tCandidate:\tObserved:\tPredicted:");
+	Map<String, Double> probs = new HashMap<>();
 	for(int j = 0; j < CRF.mydata.size(); j++)
 	{
 		String[] cands_j = ((OTData) CRF.mydata.get(j)).candidateNames;
@@ -329,7 +328,22 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 								"\t" + cands_j[i] +
 								"\t" + ((OTData) CRF.mydata.get(j)).frequencies[i] +
 								"\t" + outputProbs_j.get(i));
+
+			// "p + Vv" -> 0.99
+			probs.put(((OTData) CRF.mydata.get(j)).inputForm + cands_j[i], outputProbs_j.get(i));
 		}
+	}
+
+	for (NeutralisationItem neutralisationItem : neutralisationItems) {
+		Double value = neutralisationItem.neutPenalty;
+		value *= bias;
+		for (Outcome outcome : neutralisationItem.outcomes) {
+
+			Double prob = probs.get(outcome.input + outcome.candidate);
+			value *= prob;
+		}
+		System.out.println("processing item: " + neutralisationItem);
+		System.out.println("calculated value: " + value);
 	}
 }
 
