@@ -279,7 +279,10 @@ public class Main extends JPanel implements ActionListener
 					try{
 						optimize(textout);
 						printPredictedProbabilities(textout);
-					}catch(Exception exc){badNews("failure during main learning and output segment."); runokay = false; statusReport.setText("error encountered in learning or output.");}
+					}catch(Exception exc){
+						exc.printStackTrace();
+						badNews("failure during main learning and output segment."); runokay = false; statusReport.setText("error encountered in learning or output.");
+					}
 				}
 
 
@@ -334,16 +337,28 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 		}
 	}
 
-	for (NeutralisationItem neutralisationItem : neutralisationItems) {
-		Double value = neutralisationItem.neutPenalty;
-		value *= bias;
-		for (Outcome outcome : neutralisationItem.outcomes) {
+	try {
+		if (neutralisationItems != null) {
+			for (NeutralisationItem neutralisationItem : neutralisationItems) {
+				Double value = neutralisationItem.neutPenalty;
+				value *= bias;
+				for (Outcome outcome : neutralisationItem.outcomes) {
 
-			Double prob = probs.get(outcome.input + outcome.candidate);
-			value *= prob;
+					String key = outcome.input + outcome.candidate;
+					Double prob = probs.get(key);
+					if (prob == null) {
+						System.out.println("probability not found for: " + key);
+					} else {
+						value *= prob;
+					}
+				}
+				System.out.println("processing item: " + neutralisationItem);
+				System.out.println("calculated value: " + value);
+			}
 		}
-		System.out.println("processing item: " + neutralisationItem);
-		System.out.println("calculated value: " + value);
+	} catch (Exception e) {
+		System.out.println("failed to calculate penalty values");
+		e.printStackTrace();
 	}
 }
 
