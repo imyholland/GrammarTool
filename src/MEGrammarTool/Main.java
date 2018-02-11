@@ -1,8 +1,11 @@
 package MEGrammarTool;
 
+import MEGrammarTool.fileparsing.CommaFormat;
 import MEGrammarTool.fileparsing.DataFile;
 import MEGrammarTool.fileparsing.DataRow;
 import MEGrammarTool.fileparsing.TabFormat;
+import MEGrammarTool.neutralisation.NeutralisationItem;
+import MEGrammarTool.neutralisation.Outcome;
 import cern.colt.list.ObjectArrayList;
 import cern.colt.matrix.DoubleFactory2D;
 import cern.colt.matrix.DoubleMatrix1D;
@@ -17,8 +20,8 @@ import java.awt.event.ActionListener;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Vector;
-
 
 
 public class Main extends JPanel implements ActionListener
@@ -32,6 +35,7 @@ public class Main extends JPanel implements ActionListener
     public ProvisionalCRF CRF;
 	public GaussianRegularizer REG;
 	public double bias;
+	public List<NeutralisationItem> neutralisationItems;
     DataSet trainingData;
 
     Feature[] constraints;
@@ -179,6 +183,32 @@ public class Main extends JPanel implements ActionListener
 					System.out.print("unable to read bias data from " + file.getName() + "\n");
 					biasSourceName.setText("[None]");
 					bias = 0;
+					statusReport.setText("error occurred attempting to open file.");
+				}
+			}
+			else
+			{
+				statusReport.setText("bias file selection canceled.");
+			}
+		}
+		else if(e.getSource() == neutPenaltySelector)
+		{
+			statusReport.setText("please select a neutralising outcomes source file.");
+			int returnVal = fcIn.showOpenDialog(Main.this);
+			if (returnVal == JFileChooser.APPROVE_OPTION)
+			{
+				statusReport.setText("attempting to open selected file.");
+				File file = fcIn.getSelectedFile();
+				try{
+					neutralisationItems = readNeutOutcomesFile(file);
+					neutPenaltySelector.setText(file.getName());
+					statusReport.setText("successfully opened " + file.getName());
+				}catch(Exception exc)
+				{
+					exc.printStackTrace();
+					System.out.print("unable to read neutralisation data from " + file.getName() + "\n");
+					neutPenaltySourceName.setText("[None]");
+					neutralisationItems = null;
 					statusReport.setText("error occurred attempting to open file.");
 				}
 			}
@@ -362,7 +392,7 @@ private static double readBiasFile(File f) throws Exception {
 		String topLine = br.readLine();
 		System.out.println("read bias file: " + topLine);
 
-		return Double.valueOf(topLine);
+		return Double.parseDouble(topLine);
 	} finally {
 		if (fr != null)
 			fr.close();
@@ -370,6 +400,47 @@ private static double readBiasFile(File f) throws Exception {
 			br.close();
 
 	}
+}
+
+private static List<NeutralisationItem> readNeutOutcomesFile(File f) throws Exception {
+	List<NeutralisationItem> neutralisationItems = new ArrayList<>();
+	DataFile read = null;
+	try {
+
+		read = DataFile.createReader("");
+		read.setDataFormat(new CommaFormat());
+		read.open(f);
+
+		DataRow filerow = read.next();
+		while (filerow != null) {    // looping through lines
+			NeutralisationItem neutralisationItem = new NeutralisationItem();
+			neutralisationItems.add(neutralisationItem);
+			for (int i = 0; i < filerow.size(); i++) {    // looping through items in the line
+				String item = filerow.getString(i);
+				boolean penaltyFound = false;
+				try {
+					double penalty = Double.parseDouble(item);
+					penaltyFound = true;
+					neutralisationItem.neutPenalty = penalty;
+				} catch (NumberFormatException e) {
+				}
+				if (!penaltyFound) {
+					// item will look like 'p;v'
+					String[] split = item.split(";");
+					Outcome outcome = new Outcome();
+					outcome.input = split[0];
+					outcome.candidate = split[1];
+					neutralisationItem.outcomes.add(outcome);
+				}
+			}
+			filerow = read.next();
+		}
+	} finally {
+		if (read != null)
+			read.close();
+	}
+
+	return neutralisationItems;
 }
 
 private static void readFeatureSpecs(File f, Vector<Feature> fs) throws Exception
