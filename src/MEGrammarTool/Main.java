@@ -14,9 +14,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.PrintStream;
+import java.io.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Vector;
 
@@ -24,15 +23,17 @@ import java.util.Vector;
 
 public class Main extends JPanel implements ActionListener
 {
-    JButton tableauxSelector, constraintSelector, targetSelector, runButton;
-    JLabel tableauxSourceName, constraintSourceName, targetName, statusReport;
+    JButton tableauxSelector, constraintSelector, targetSelector, runButton, biasSelector, neutPenaltySelector;
+    JLabel tableauxSourceName, constraintSourceName, targetName, statusReport, biasSourceName, neutPenaltySourceName;
     File targetFile;
     JFileChooser fcIn, fcOut;
 	public HashMap<String,Feature> featureNameMap;
 	public Vector<Feature> featureSpecs;
     public ProvisionalCRF CRF;
 	public GaussianRegularizer REG;
+	public double bias;
     DataSet trainingData;
+
     Feature[] constraints;
 	public static double TOLERANCE = 1.0e-10;
 
@@ -44,6 +45,8 @@ public class Main extends JPanel implements ActionListener
         fcOut = new JFileChooser();
 		tableauxSourceName = new JLabel("[none]");
         constraintSourceName = new JLabel("[none]");
+        biasSourceName = new JLabel("[none]");
+        neutPenaltySourceName = new JLabel("[none]");
         targetName = new JLabel("[none]");
         tableauxSelector = new JButton("open tableaux");
         tableauxSelector.addActionListener(this);
@@ -53,6 +56,10 @@ public class Main extends JPanel implements ActionListener
         targetSelector.addActionListener(this);
 		runButton = new JButton("Learn and Report");
 		runButton.addActionListener(this);
+		biasSelector = new JButton("open strength of bias");
+		biasSelector.addActionListener(this);
+		neutPenaltySelector = new JButton("open neutralising penalties");
+		neutPenaltySelector.addActionListener(this);
 		statusReport = new JLabel("[news will appear here]");
 
 		thepane.add(tableauxSelector,
@@ -67,6 +74,18 @@ public class Main extends JPanel implements ActionListener
 			new GridBagConstraints( 2, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
 		thepane.add(constraintSourceName,
 			new GridBagConstraints( 2, 1, 2, 1, 0.0, 0.0, GridBagConstraints.NORTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
+		thepane.add(biasSelector,
+				new GridBagConstraints( 7, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHEAST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  28 ), 0, 0 ));
+		thepane.add(new JLabel("Strength of Bias From:"),
+				new GridBagConstraints( 6, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
+		thepane.add(biasSourceName,
+				new GridBagConstraints( 6, 1, 2, 1, 0.0, 0.0, GridBagConstraints.NORTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
+		thepane.add(neutPenaltySelector,
+				new GridBagConstraints( 9, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHEAST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  28 ), 0, 0 ));
+		thepane.add(new JLabel("Neutralising Penalties From:"),
+				new GridBagConstraints( 8, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
+		thepane.add(neutPenaltySourceName,
+				new GridBagConstraints( 8, 1, 2, 1, 0.0, 0.0, GridBagConstraints.NORTHWEST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  3 ), 0, 0 ));
 		thepane.add(targetSelector,
 			new GridBagConstraints( 5, 0, 1, 1, 0.0, 0.0, GridBagConstraints.SOUTHEAST, GridBagConstraints.NONE, new Insets( 3, 3, 3,  28 ), 0, 0 ));
 		thepane.add(new JLabel("Save Output To:"),
@@ -142,6 +161,32 @@ public class Main extends JPanel implements ActionListener
 				statusReport.setText("constraint file selection canceled.");
 			}
         }
+		else if(e.getSource() == biasSelector)
+		{
+			statusReport.setText("please select a bias source file.");
+			int returnVal = fcIn.showOpenDialog(Main.this);
+			if (returnVal == JFileChooser.APPROVE_OPTION)
+			{
+				statusReport.setText("attempting to open selected file.");
+				File file = fcIn.getSelectedFile();
+				try{
+					bias = readBiasFile(file);
+					biasSourceName.setText(file.getName());
+					statusReport.setText("successfully opened " + file.getName());
+				}catch(Exception exc)
+				{
+					exc.printStackTrace();
+					System.out.print("unable to read bias data from " + file.getName() + "\n");
+					biasSourceName.setText("[None]");
+					bias = 0;
+					statusReport.setText("error occurred attempting to open file.");
+				}
+			}
+			else
+			{
+				statusReport.setText("bias file selection canceled.");
+			}
+		}
 		else if(e.getSource() == targetSelector)
 		{
 		    statusReport.setText("please select output file.");
@@ -308,6 +353,25 @@ private void optimize(PrintStream outputTarget)
 		+ ")\t" + Math.abs(CRF.lambda[k])); }
 }
 
+private static double readBiasFile(File f) throws Exception {
+	FileReader fr = null;
+	BufferedReader br = null;
+	try {
+		fr = new FileReader(f);
+		br = new BufferedReader(fr);
+		String topLine = br.readLine();
+		System.out.println("read bias file: " + topLine);
+
+		return Double.valueOf(topLine);
+	} finally {
+		if (fr != null)
+			fr.close();
+		if (br != null)
+			br.close();
+
+	}
+}
+
 private static void readFeatureSpecs(File f, Vector<Feature> fs) throws Exception
 {
 	DataFile read = DataFile.createReader("8859_1");
@@ -438,6 +502,7 @@ private void badNews(String s)
 
     public static void main(String[] args) {
 
+		System.out.println("starting");
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 //Turn off metal's use of bold fonts
