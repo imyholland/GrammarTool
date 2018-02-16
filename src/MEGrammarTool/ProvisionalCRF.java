@@ -12,6 +12,8 @@ import cern.colt.matrix.linalg.*;
 import cern.colt.function.*;
 import cern.jet.math.*;
 import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ProvisionalCRF implements MFWithGradient
 //public class ProvisionalCRF implements MultivariateFunction   // approx. of gradient
@@ -139,6 +141,8 @@ public double getUpperBound(int arg)
 	}
 
 
+	Map<String, Double> probs = new HashMap<>();
+
 	/**
  *  Compute the negative log conditional likelihood 
  *  (i.e., neg log pseudo-likelihood) with regularizer.
@@ -153,7 +157,7 @@ public double getUpperBound(int arg)
  *  the observed winner for tableau j, and
  *
  *  o int[] count, where count[j] is the
- *  number of times tableau j occurs in 
+ *  number of times tableau j occurs in
  *  the data set.
  */
 public double evaluate(double[] weights)
@@ -169,26 +173,37 @@ public double evaluate(double[] weights)
 
 	for(int j = 0; j < mydata.size(); j++)
 	{
-		tableau_j = ( (OTData) mydata.get(j) ).violations;
-		freqs_j = ( (OTData) mydata.get(j) ).frequencies;
+		OTData otData = (OTData) mydata.get(j);
+		tableau_j = otData.violations;
+		freqs_j = otData.frequencies;
 		logPL_j = 0.0;
 		
 		for(int k = 0; k < freqs_j.length; k ++)
 		{
+			String cand = otData.candidateNames[k];
+			String input = otData.inputForm;
+			logPL_j = 0.0;
+
+			// add (W . features(y_j, x_j))
+			//logPL_j is the summed weighted violations at this point
+			logPL_j += alg.mult(W, tableau_j.viewRow(k)); //do weights instead of winners here add loop BEN FIX THIS like below with fuck loop on k and multiply by freq
+
+
+
+			// subtract log(sum_y exp(W . features(y,x_j)))
+			DoubleMatrix1D Z = alg.mult(tableau_j, W);
+			Z.assign(exp);
+			//System.out.println(Z.get(k));
+			logPL_j -= Math.log(Z.zSum());
+
+			//System.out.println(logPL_j);
+			double prob=Math.exp(logPL_j);
+			System.out.println("input: " + input + " cand: " + cand + " prob: " + prob);
+
+			probs.put(input + cand, prob);
+
 			if( freqs_j[k] !=0)
 			{
-				logPL_j = 0.0;
-	
-				// add (W . features(y_j, x_j))
-				logPL_j += alg.mult(W, tableau_j.viewRow(k)); //do weights instead of winners here add loop BEN FIX THIS like below with fuck loop on k and multiply by freq
-		
-		
-		
-				// subtract log(sum_y exp(W . features(y,x_j)))
-				DoubleMatrix1D Z = alg.mult(tableau_j, W);
-				Z.assign(exp);
-				logPL_j -= Math.log(Z.zSum());
-		
 				// add logPL_j once for every 
 				// occurrences of tableau_j
 				logPL += (freqs_j[k] * logPL_j);
@@ -266,6 +281,7 @@ public void computeGradient(double[] weights, double[] gradient)
 	{
 		tableau_j = ( (OTData) mydata.get(j) ).violations;
 		freqs_j = ( (OTData) mydata.get(j) ).frequencies;
+
 		for(int k = 0; k < freqs_j.length; k ++)
 		{
 			if(freqs_j[k] !=0)
@@ -275,18 +291,42 @@ public void computeGradient(double[] weights, double[] gradient)
 				grad_j = tableau_j.viewRow(k).copy(); //BEN FUCK THIS IS HARD UM ... ooh! just add 'em together. should work. another loop um... view each row and multiply
 	
 				// partition function: Z_j <- sum_y exp(W . features(y,x_j))
+				//cands is the summed weighted violations
 				DoubleMatrix1D cands = alg.mult(tableau_j, W);
+
 				cands.assign(exp);
+
 				Z_j = cands.zSum();
 		
-				// sum_y [ exp(W . features(y,x_j)) * f_k(y,x_j)] for each k 
+				// sum_y [ exp(W . features(y,x_j)) * f_k(y,x_j)] for each k
+				//cands is equal to the numerator of Pr(y|x)
 				cands = alg.mult(alg.transpose(tableau_j), cands);
+
+
 				// divide each term by the partition function Z_j
 				// this is *log(expected)* violations of f_k
 				cands.assign(cern.jet.math.Functions.bindArg2(div,Z_j));
 
+
 				// log(observed) - log(expected) (i.e., log(O/E))
+				//grad_j=negative plog
 				grad_j.assign(cands, minus);
+				/*if(k==0)
+				{
+					System.out.println(freqs_j[k]);
+					for(int i=0;i<cands.size();i++){
+						if(i==0)
+						{
+							System.out.println(cands.get(i));
+							System.out.println(grad_j.get(k));
+							DoubleMatrix1D grad_j_new = DoubleFactory1D.dense.make(gradient.length);
+							grad_j_new=grad_j.copy();
+							grad_j_new.assign(exp);
+							System.out.println(grad_j_new.get(k));
+
+						}
+					}
+				}*/
 
 				// multiply grad_j by the number 
 				// of occurences of tableau_j

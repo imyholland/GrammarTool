@@ -319,7 +319,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 {
 	ObjectArrayList outputProbs = CRF.outputProbabilities(CRF.lambda);
 	outputTarget.println("Input:\tCandidate:\tObserved:\tPredicted:");
-	Map<String, Double> probs = new HashMap<>();
+	//Map<String, Double> probs = new HashMap<>();
 	for(int j = 0; j < CRF.mydata.size(); j++)
 	{
 		String[] cands_j = ((OTData) CRF.mydata.get(j)).candidateNames;
@@ -333,7 +333,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 								"\t" + outputProbs_j.get(i));
 
 			// "p + Vv" -> 0.99
-			probs.put(((OTData) CRF.mydata.get(j)).inputForm + cands_j[i], outputProbs_j.get(i));
+			//probs.put(((OTData) CRF.mydata.get(j)).inputForm + cands_j[i], outputProbs_j.get(i));
 		}
 	}
 
@@ -345,7 +345,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 				for (Outcome outcome : neutralisationItem.outcomes) {
 
 					String key = outcome.input + outcome.candidate;
-					Double prob = probs.get(key);
+					Double prob = CRF.probs.get(key);
 					if (prob == null) {
 						System.out.println("probability not found for: " + key);
 					} else {
