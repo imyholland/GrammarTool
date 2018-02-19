@@ -4,14 +4,17 @@
  */
 
 package MEGrammarTool;
-import MEGrammarTool.*;
-import pal.math.*;
-import cern.colt.list.*;
-import cern.colt.matrix.*;
-import cern.colt.matrix.linalg.*;
-import cern.colt.function.*;
-import cern.jet.math.*;
-import java.io.*;
+import cern.colt.function.DoubleDoubleFunction;
+import cern.colt.function.DoubleFunction;
+import cern.colt.list.ObjectArrayList;
+import cern.colt.matrix.DoubleFactory1D;
+import cern.colt.matrix.DoubleMatrix1D;
+import cern.colt.matrix.DoubleMatrix2D;
+import cern.colt.matrix.linalg.Algebra;
+import pal.math.MFWithGradient;
+import pal.math.OrthogonalHints;
+
+import java.io.PrintStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -33,7 +36,7 @@ DoubleDoubleFunction div = cern.jet.math.Functions.div;
 DoubleDoubleFunction plus = cern.jet.math.Functions.plus;
 DoubleDoubleFunction minus = cern.jet.math.Functions.minus;
 DoubleFunction neg = cern.jet.math.Functions.neg; // f(x) == -x
-	
+
 /**
  * Default constructor
  */
@@ -54,7 +57,7 @@ public void setMyData(ObjectArrayList L)
 
 
 /**
- *  Creates a tableaux (list of DoubleMatrix2D objects) 
+ *  Creates a tableaux (list of DoubleMatrix2D objects)
  *  by evaluating each tableaux in data set D with each
  *  of the features in this field.
  */
@@ -63,7 +66,7 @@ public void setMyData(ObjectArrayList L)
 *	int numberOfTableaux = D.tableaux.size();
 *	String[] tableau_j = null;
 *	double[][] violations_j = null;
-*	
+*
 *	ObjectArrayList tblx = new ObjectArrayList();
 *
 *	for(int j = 0; j < numberOfTableaux; j++)
@@ -74,7 +77,7 @@ public void setMyData(ObjectArrayList L)
 *		violations_j = new double[features.length][tableau_j.length-1];
 *		for(int k = 0; k < features.length; k++)
 *		{ violations_j[k] = features[k].evaluate(tableau_j); }
-*	
+*
 *		// place tableau in a DoubleMatrix2D container, and transpose
 *		DoubleMatrix2D tbl_j = DoubleFactory2D.dense.make(violations_j);
 *		tbl_j = alg.transpose(tbl_j);
@@ -86,9 +89,9 @@ public void setMyData(ObjectArrayList L)
 
 
 /**
- *  Given a list of Features, a weight vector, and a 
- *  tableaux (list of DoubleMatrix2D objects), returns 
- *  a list of DoubleMatrix1D objects: the output 
+ *  Given a list of Features, a weight vector, and a
+ *  tableaux (list of DoubleMatrix2D objects), returns
+ *  a list of DoubleMatrix1D objects: the output
  *  probabilities for the tableaux given the Features
  *  and their weights.
  */
@@ -103,17 +106,17 @@ public ObjectArrayList outputProbabilities(double[] weights)
 	for(int j = 0; j < mydata.size(); j++)
 	{
 		tableau_j = ( (OTData) mydata.get(j) ).violations;
-		
+
 		// unnormalized probabilities
 		cands_j = alg.mult(tableau_j, W);
 		cands_j.assign(exp);
-		
+
 		// partition function
 		Z_j = cands_j.zSum();
-		
+
 		// normalized probabilities
 		cands_j.assign(cern.jet.math.Functions.bindArg2(div,Z_j));
-		
+
 		outputProbs.add(cands_j);
 	}
 
@@ -144,7 +147,7 @@ public double getUpperBound(int arg)
 	Map<String, Double> probs = new HashMap<>();
 
 	/**
- *  Compute the negative log conditional likelihood 
+ *  Compute the negative log conditional likelihood
  *  (i.e., neg log pseudo-likelihood) with regularizer.
  *  @param weights vector of feature weights
  *  @return neg log conditional likelihood + regularizer
@@ -152,7 +155,7 @@ public double getUpperBound(int arg)
  *  Presupposes:
  *  o DoubleMatrix3D tableaux,
  *
- *  o int[] winners, where winners[j] is the 
+ *  o int[] winners, where winners[j] is the
  *  row in tableaux.viewSlice(j) that contains
  *  the observed winner for tableau j, and
  *
@@ -177,7 +180,7 @@ public double evaluate(double[] weights)
 		tableau_j = otData.violations;
 		freqs_j = otData.frequencies;
 		logPL_j = 0.0;
-		
+
 		for(int k = 0; k < freqs_j.length; k ++)
 		{
 			String cand = otData.candidateNames[k];
@@ -204,18 +207,18 @@ public double evaluate(double[] weights)
 
 			if( freqs_j[k] !=0)
 			{
-				// add logPL_j once for every 
+				// add logPL_j once for every
 				// occurrences of tableau_j
 				logPL += (freqs_j[k] * logPL_j);
 			}
 		}
 	}
-	
+
 	double negLogPL = -logPL;
 
 	// add the value of the regularizer
 	double objective = negLogPL + regularizer.value(features, weights);
-	
+
 //	System.out.println("objective= " + objective);
 	return objective;
 }
@@ -261,7 +264,7 @@ public void printMe(PrintStream outputTarget)
 }
 
 /**
- *  Compute the gradient of the neg log conditional 
+ *  Compute the gradient of the neg log conditional
  *  likelihood (i.e., of the neg log pseudo-likelihood)
  *  with regularizer.
  *  @param weights vector of feature weights
@@ -276,7 +279,7 @@ public void computeGradient(double[] weights, double[] gradient)
 	DoubleMatrix2D tableau_j;
 	double[] freqs_j;
 	double Z_j;
-	
+
 	for(int j = 0; j < mydata.size(); j++)
 	{
 		tableau_j = ( (OTData) mydata.get(j) ).violations;
@@ -289,7 +292,7 @@ public void computeGradient(double[] weights, double[] gradient)
 				// add f_k(y_j,x) for each feature k
 				// this is *log(observed)* violations of f_k
 				grad_j = tableau_j.viewRow(k).copy(); //BEN FUCK THIS IS HARD UM ... ooh! just add 'em together. should work. another loop um... view each row and multiply
-	
+
 				// partition function: Z_j <- sum_y exp(W . features(y,x_j))
 				//cands is the summed weighted violations
 				DoubleMatrix1D cands = alg.mult(tableau_j, W);
@@ -297,7 +300,7 @@ public void computeGradient(double[] weights, double[] gradient)
 				cands.assign(exp);
 
 				Z_j = cands.zSum();
-		
+
 				// sum_y [ exp(W . features(y,x_j)) * f_k(y,x_j)] for each k
 				//cands is equal to the numerator of Pr(y|x)
 				cands = alg.mult(alg.transpose(tableau_j), cands);
@@ -328,7 +331,7 @@ public void computeGradient(double[] weights, double[] gradient)
 					}
 				}*/
 
-				// multiply grad_j by the number 
+				// multiply grad_j by the number
 				// of occurences of tableau_j
 				grad_j.assign(cern.jet.math.Functions.bindArg1(mult,(double) freqs_j[k]));
 
@@ -336,10 +339,10 @@ public void computeGradient(double[] weights, double[] gradient)
 			}
 		}
 	}
-	
+
 	grad.assign(neg);
 
-	// subtract the gradient of the regularizer 
+	// subtract the gradient of the regularizer
 	grad.assign(
 		DoubleFactory1D.dense.make(
 			regularizer.gradient(features, weights)),
