@@ -345,11 +345,13 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 				for (Outcome outcome : neutralisationItem.outcomes) {
 
 					String key = outcome.input + outcome.candidate;
-					Double prob = CRF.probs.get(key);
-					if (prob == null) {
-						System.out.println("probability not found for: " + key);
+					List<Double> probsForKey = CRF.probs.get(key);
+					if (probsForKey == null) {
+						System.out.println("probabilities not found for: " + key);
 					} else {
-						value *= prob;
+						for (Double prob : probsForKey) {
+							value *= prob;
+						}
 					}
 				}
 				System.out.println("processing item: " + neutralisationItem);

@@ -4,6 +4,7 @@
  */
 
 package MEGrammarTool;
+
 import cern.colt.function.DoubleDoubleFunction;
 import cern.colt.function.DoubleFunction;
 import cern.colt.list.ObjectArrayList;
@@ -15,7 +16,9 @@ import pal.math.MFWithGradient;
 import pal.math.OrthogonalHints;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class ProvisionalCRF implements MFWithGradient
@@ -144,7 +147,7 @@ public double getUpperBound(int arg)
 	}
 
 
-	Map<String, Double> probs = new HashMap<>();
+	Map<String, List<Double>> probs = new HashMap<>();
 
 	/**
  *  Compute the negative log conditional likelihood
@@ -203,7 +206,13 @@ public double evaluate(double[] weights)
 			double prob=Math.exp(logPL_j);
 			System.out.println("input: " + input + " cand: " + cand + " prob: " + prob);
 
-			probs.put(input + cand, prob);
+			String key = input + cand;
+			List<Double> probsForKey = probs.get(key);
+			if (probsForKey == null) {
+				probsForKey = new ArrayList<>();
+				probs.put(key, probsForKey);
+			}
+			probsForKey.add(prob);
 
 			if( freqs_j[k] !=0)
 			{
