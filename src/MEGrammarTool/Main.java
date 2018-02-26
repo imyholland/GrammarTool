@@ -116,7 +116,7 @@ public class Main extends JPanel implements ActionListener
 				try{
 					tableauxSourceName.setText(file.getName());
 					REG = new GaussianRegularizer();
-					CRF = new ProvisionalCRF(REG);
+					CRF = new ProvisionalCRF(REG, this);
 					featureNameMap = new HashMap<String,Feature>();
 					readTableaux(file,CRF,featureNameMap);
 					tableauxSourceName.setText(file.getName());
@@ -337,31 +337,7 @@ private void printPredictedProbabilities( PrintStream outputTarget)
 		}
 	}
 
-	try {
-		if (neutralisationItems != null) {
-			for (NeutralisationItem neutralisationItem : neutralisationItems) {
-				Double value = neutralisationItem.neutPenalty;
-				value *= bias;
-				for (Outcome outcome : neutralisationItem.outcomes) {
 
-					String key = outcome.input + outcome.candidate;
-					List<Double> probsForKey = CRF.probs.get(key);
-					if (probsForKey == null) {
-						System.out.println("probabilities not found for: " + key);
-					} else {
-						for (Double prob : probsForKey) {
-							value *= prob;
-						}
-					}
-				}
-				System.out.println("processing item: " + neutralisationItem);
-				System.out.println("calculated value: " + value);
-			}
-		}
-	} catch (Exception e) {
-		System.out.println("failed to calculate penalty values");
-		e.printStackTrace();
-	}
 }
 
 

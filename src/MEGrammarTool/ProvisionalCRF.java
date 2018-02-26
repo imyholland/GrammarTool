@@ -5,6 +5,8 @@
 
 package MEGrammarTool;
 
+import MEGrammarTool.neutralisation.NeutralisationItem;
+import MEGrammarTool.neutralisation.Outcome;
 import cern.colt.function.DoubleDoubleFunction;
 import cern.colt.function.DoubleFunction;
 import cern.colt.list.ObjectArrayList;
@@ -16,9 +18,7 @@ import pal.math.MFWithGradient;
 import pal.math.OrthogonalHints;
 
 import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class ProvisionalCRF implements MFWithGradient
@@ -40,16 +40,19 @@ DoubleDoubleFunction plus = cern.jet.math.Functions.plus;
 DoubleDoubleFunction minus = cern.jet.math.Functions.minus;
 DoubleFunction neg = cern.jet.math.Functions.neg; // f(x) == -x
 
+	Main main;
+
 /**
  * Default constructor
  */
-ProvisionalCRF(Regularizer r)
+ProvisionalCRF(Regularizer r, Main main)
 {
 	regularizer = r;
 	features = null;
 	lambda = null;
 	mydata = null;
 	alg = new cern.colt.matrix.linalg.Algebra();
+	this.main = main;
 }
 
 
@@ -147,8 +150,6 @@ public double getUpperBound(int arg)
 	}
 
 
-	Map<String, List<Double>> probs = new HashMap<>();
-
 	/**
  *  Compute the negative log conditional likelihood
  *  (i.e., neg log pseudo-likelihood) with regularizer.
@@ -168,6 +169,8 @@ public double getUpperBound(int arg)
  */
 public double evaluate(double[] weights)
 {
+	Map<String, Double> probs = new HashMap<>();
+
 	double[] freqs_j;
 	double logPL = 0.0;
 	DoubleMatrix2D tableau_j;   // individual tableau (one input,
@@ -207,12 +210,7 @@ public double evaluate(double[] weights)
 			System.out.println("input: " + input + " cand: " + cand + " prob: " + prob);
 
 			String key = input + cand;
-			List<Double> probsForKey = probs.get(key);
-			if (probsForKey == null) {
-				probsForKey = new ArrayList<>();
-				probs.put(key, probsForKey);
-			}
-			probsForKey.add(prob);
+			probs.put(key, prob);
 
 			if( freqs_j[k] !=0)
 			{
@@ -223,10 +221,37 @@ public double evaluate(double[] weights)
 		}
 	}
 
+	double valueTotal = 0;
+
+	try {
+		if (main.neutralisationItems != null) {
+			for (NeutralisationItem neutralisationItem : main.neutralisationItems) {
+				Double value = neutralisationItem.neutPenalty;
+				value *= main.bias;
+				for (Outcome outcome : neutralisationItem.outcomes) {
+
+					String key = outcome.input + outcome.candidate;
+					Double probForKey = probs.get(key);
+					if (probForKey == null) {
+						System.out.println("probabilities not found for: " + key);
+					} else {
+						value *= probForKey;
+					}
+				}
+				valueTotal += value;
+				System.out.println("processing item: " + neutralisationItem);
+				System.out.println("calculated value: " + value);
+			}
+		}
+	} catch (Exception e) {
+		System.out.println("failed to calculate penalty values");
+		e.printStackTrace();
+	}
+
 	double negLogPL = -logPL;
 
 	// add the value of the regularizer
-	double objective = negLogPL + regularizer.value(features, weights);
+	double objective = negLogPL + regularizer.value(features, weights) - valueTotal;
 
 //	System.out.println("objective= " + objective);
 	return objective;
